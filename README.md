@@ -132,11 +132,14 @@ flowchart LR
 | `apps/web` | Next.js 15, React 19, SIP.js | Interface, sessão e telefone WebRTC |
 | `apps/api` | NestJS 11 | Autenticação, conversas, telefonia e controle de acesso |
 | `apps/telephony-worker` | Node.js, WebSocket ARI | Eventos de chamadas, gravações e transcrições |
+| `apps/workers` | TypeScript, Node.js | Base para workers de processamento assíncrono em segundo plano |
 | `packages/db` | Drizzle ORM, PostgreSQL | Schema, migrações e isolamento multiempresa |
 | `packages/auth` | JWT, Argon2 | Senhas, tokens, perfis e permissões |
 | `packages/config` | Zod | Validação das variáveis de ambiente |
 | `packages/observability` | Logs estruturados | Logs com ocultação de dados sensíveis |
 | `packages/provider-contracts` | TypeScript | Contratos para SIP, WhatsApp, storage e transcrição |
+| `packages/queue-kit` | BullMQ, ioredis | Estrutura de enfileiramento e gerenciamento de filas Redis |
+| `packages/testing` | TypeScript | Provedores simulados (mocks) e utilitários para suíte de testes |
 | `infra/asterisk` | Asterisk 20 | PBX, ramais, filas, troncos e gravação |
 | `infra/whisper` | Python, faster-whisper | Transcrição local de áudio |
 | `infra/docker-compose.yml` | Docker Compose | PostgreSQL, Redis, MinIO, Asterisk e Whisper |
@@ -210,6 +213,120 @@ As principais categorias são:
 - provedor de voz pelo WhatsApp.
 - API oficial de mensagens do WhatsApp.
 - Whisper local ou OpenAI.
+
+#### Detalhamento das variáveis de ambiente
+
+| Variável | Descrição |
+|---|---|
+| `NODE_ENV` | Ambiente de execução (`development`, `test`, `production`). |
+| `LOG_LEVEL` | Nível mínimo de log (`debug`, `info`, `warn`, `error`). |
+| `API_PORT` | Porta HTTP da API NestJS (padrão: `3001`). |
+| `WEB_PORT` | Porta HTTP do frontend Web Next.js (padrão: `3000`). |
+| `API_BASE_URL` | URL base da API para clientes HTTP (padrão: `http://localhost:3001`). |
+| `WEB_BASE_URL` | URL base da aplicação Web, usada para redirecionamentos e CORS (padrão: `http://localhost:3000`). |
+| `POSTGRES_USER` | Usuário administrativo do PostgreSQL no Docker (padrão: `omni`). |
+| `POSTGRES_PASSWORD` | Senha do usuário administrativo do PostgreSQL. |
+| `POSTGRES_DB` | Nome do banco de dados no PostgreSQL (padrão: `omni`). |
+| `POSTGRES_PORT` | Porta exposta do PostgreSQL no host (padrão: `5432`). |
+| `DATABASE_ADMIN_URL` | URL de conexão administrativa com o PostgreSQL (para migrações e bootstrap de roles; ignora RLS). |
+| `APP_DB_USER` | Nome do usuário restrito da aplicação sujeito às políticas de RLS (padrão: `omni_app`). |
+| `APP_DB_PASSWORD` | Senha do usuário restrito da aplicação. |
+| `DATABASE_URL` | URL de conexão do PostgreSQL usada pela API com a role restrita da aplicação. |
+| `REDIS_PORT` | Porta exposta do Redis no host (padrão: `6379`). |
+| `REDIS_URL` | URL de conexão com a instância do Redis (padrão: `redis://localhost:6379`). |
+| `MINIO_ROOT_USER` | Usuário administrador raiz do MinIO. |
+| `MINIO_ROOT_PASSWORD` | Senha administrativa do MinIO. |
+| `MINIO_PORT` | Porta da API S3 compatível do MinIO (padrão: `9000`). |
+| `MINIO_CONSOLE_PORT` | Porta do console web do MinIO (padrão: `9001`). |
+| `STORAGE_DRIVER` | Driver de armazenamento de objetos (ex.: `s3`). |
+| `STORAGE_ENDPOINT` | Endpoint HTTP da API compatível com S3 (padrão: `http://localhost:9000`). |
+| `STORAGE_REGION` | Região do bucket S3 (padrão: `us-east-1`). |
+| `STORAGE_BUCKET` | Nome do bucket para arquivos de gravação (padrão: `omni-recordings`). |
+| `STORAGE_ACCESS_KEY_ID` | Chave de acesso (Access Key) do storage S3/MinIO. |
+| `STORAGE_SECRET_ACCESS_KEY` | Chave secreta (Secret Key) do storage S3/MinIO. |
+| `STORAGE_FORCE_PATH_STYLE` | Habilita uso de path-style URLs no S3 (obrigatório para MinIO; padrão: `true`). |
+| `STORAGE_SIGNED_URL_TTL_SECONDS` | Tempo de validade em segundos para URLs pré-assinadas de reprodução de gravações (padrão: `300`). |
+| `JWT_ACCESS_SECRET` | Segredo criptográfico de assinatura do access token JWT (mínimo de 32 caracteres). |
+| `JWT_REFRESH_SECRET` | Segredo criptográfico de assinatura do refresh token JWT (mínimo de 32 caracteres, distinto do access secret). |
+| `JWT_ACCESS_TTL` | Duração de validade do access token (padrão: `15m`). |
+| `JWT_REFRESH_TTL` | Duração de validade do refresh token em cookie httpOnly (padrão: `7d`). |
+| `SIP_PROVIDER_DRIVER` | Driver de telefonia SIP (`mock` para testes sem infraestrutura telefônica ou `real`). |
+| `WHATSAPP_PROVIDER_DRIVER` | Driver de WhatsApp (`mock` ou `real`). |
+| `TRANSCRIPTION_PROVIDER_DRIVER` | Driver de transcrição de áudio (`mock` ou `real`). |
+| `ASTERISK_ARI_URL` | URL da API REST do Asterisk ARI (padrão: `http://localhost:8088`). |
+| `ASTERISK_ARI_USERNAME` | Usuário configurado para conexão ARI. |
+| `ASTERISK_ARI_PASSWORD` | Senha de autenticação ARI. |
+| `ASTERISK_ARI_APP` | Nome da aplicação Stasis no Asterisk (padrão: `omnichannel`). |
+| `ASTERISK_ARI_RECONNECT_DELAY_MS` | Tempo em milissegundos de espera antes de reconectar o WebSocket ARI (padrão: `5000`). |
+| `ASTERISK_WSS_URL` | URL WebSocket para conexão WebRTC SIP.js do discador (padrão: `ws://localhost:8088/ws`). |
+| `ASTERISK_WEBRTC_DOMAIN` | Domínio SIP configurado no Asterisk para ramais WebRTC (padrão: `localhost`). |
+| `ASTERISK_EXTERNAL_ADDRESS` | Endereço IP externo ou público do Asterisk para sinalização atrás de NAT. |
+| `ASTERISK_STUN_ADDRESS` | Servidor STUN para descoberta de endereços ICE (padrão: `stun.l.google.com:19302`). |
+| `ASTERISK_WEBRTC_1001_PASSWORD` | Senha SIP do ramal WebRTC 1001. |
+| `ASTERISK_WEBRTC_1002_PASSWORD` | Senha SIP do ramal WebRTC 1002. |
+| `ASTERISK_WEBRTC_SECRET` | Segredo mestre opcional para derivação automática de senhas para ramais de 1003 a 1099. |
+| `ASTERISK_EXTENSION_START` | Número do primeiro ramal da faixa (padrão: `1001`). |
+| `ASTERISK_EXTENSION_END` | Número do último ramal da faixa (padrão: `1099`). |
+| `ASTERISK_QUEUE_NAME` | Nome da fila de atendimento no dialplan do Asterisk (padrão: `vendas`). |
+| `ASTERISK_QUEUE_STRATEGY` | Estratégia de distribuição de chamadas da fila (padrão: `rrmemory`). |
+| `ASTERISK_QUEUE_MEMBER_TIMEOUT` | Tempo limite em segundos para tentativa em cada ramal da fila (padrão: `20`). |
+| `ASTERISK_QUEUE_RETRY` | Número de retentativas na fila antes de desistir (padrão: `3`). |
+| `ASTERISK_QUEUE_WRAPUP` | Tempo de wrap-up pós-atendimento da fila em segundos (padrão: `5`). |
+| `ASTERISK_QUEUE_MAX_WAIT` | Tempo máximo de espera na fila em segundos (padrão: `45`). |
+| `ASTERISK_RECORDINGS_PATH` | Diretório no host onde os arquivos de áudio WAV do Asterisk são montados (padrão: `infra/.local/asterisk-recordings`). |
+| `ASTERISK_SIP_PORT` | Porta UDP local para sinalização SIP do Asterisk (padrão: `5060`). |
+| `ASTERISK_HTTP_PORT` | Porta TCP local para ARI e WebSocket do Asterisk (padrão: `8088`). |
+| `ASTERISK_RTP_START` | Porta UDP inicial da faixa RTP de áudio (padrão: `10000`). |
+| `ASTERISK_RTP_END` | Porta UDP final da faixa RTP de áudio (padrão: `10099`). |
+| `SIP_PROVIDER` | Identificador do provedor SIP principal. |
+| `SIP_TRUNK_HOST` | Host do tronco SIP principal. |
+| `SIP_AUTH_METHOD` | Método de autenticação do tronco SIP principal. |
+| `SIP_USERNAME` | Usuário do tronco SIP principal. |
+| `SIP_PASSWORD` | Senha do tronco SIP principal. |
+| `SIP_PHONE_NUMBER` | Número DID atribuído ao tronco SIP principal. |
+| `SIP_SUPPORTED_CODECS` | Codecs de áudio suportados no tronco principal (ex.: `alaw,ulaw`). |
+| `WAVOIP_SIP_HOST` | Host SIP do provedor WaVoIP para voz via WhatsApp (padrão: `sipv2.wavoip.com`). |
+| `WAVOIP_SIP_PORT` | Porta do servidor SIP WaVoIP (padrão: `5060`). |
+| `WAVOIP_SIP_USERNAME` | Usuário SIP gerado no painel WaVoIP. |
+| `WAVOIP_SIP_PASSWORD` | Senha SIP do WaVoIP. |
+| `WAVOIP_CALLER_ID` | Identificador de chamada (Caller ID) atribuído na conta WaVoIP. |
+| `WAVOIP_SUPPORTED_CODECS` | Codecs de áudio permitidos no tronco WaVoIP (padrão: `alaw,ulaw`). |
+| `WHATSAPP_VOICE_WEBHOOK_TOKEN` | Token secreto para autenticação dos webhooks de eventos de voz (mínimo de 32 caracteres). |
+| `WHATSAPP_VOICE_ORGANIZATION_ID` | UUID da organização para associar eventos de voz sem número no ambiente local. |
+| `TWILIO_SIP_DOMAIN` | Domínio do Elastic SIP Trunking da Twilio. |
+| `TWILIO_CALLER_ID` | Caller ID verificado na Twilio para chamadas de saída. |
+| `TWILIO_SUPPORTED_CODECS` | Codecs de áudio suportados no tronco Twilio (padrão: `ulaw,alaw`). |
+| `NVOIP_SIP_HOST` | Host do servidor SIP da Nvoip (padrão: `app.nvoip.com.br`). |
+| `NVOIP_SIP_PORT` | Porta do servidor SIP Nvoip (padrão: `5060`). |
+| `NVOIP_SIP_USERNAME` | Usuário de autenticação SIP na Nvoip. |
+| `NVOIP_SIP_PASSWORD` | Senha de autenticação SIP na Nvoip. |
+| `NVOIP_CALLER_ID` | Caller ID configurado para a rota Nvoip. |
+| `NVOIP_SUPPORTED_CODECS` | Codecs de áudio suportados na Nvoip (padrão: `alaw,ulaw`). |
+| `META_BUSINESS_ID` | ID do gerenciador de negócios Meta Business. |
+| `META_WABA_ID` | ID da conta WhatsApp Business (WABA). |
+| `META_PHONE_NUMBER_ID` | ID do número de telefone na Meta Cloud API. |
+| `META_APP_ID` | ID do aplicativo cadastrado no Meta for Developers. |
+| `META_APP_SECRET` | Chave secreta do aplicativo Meta para validação de assinatura HMAC SHA-256 do webhook. |
+| `META_ACCESS_TOKEN` | Token de acesso de sistema para envio de mensagens via Meta Cloud API. |
+| `META_GRAPH_API_VERSION` | Versão da Meta Graph API utilizada (padrão: `v21.0`). |
+| `META_WEBHOOK_VERIFY_TOKEN` | Token arbitrário de verificação informado no painel da Meta para validação inicial do webhook. |
+| `TRANSCRIPTION_PROVIDER` | Provedor de transcrição pós-chamada (`whisper_local` ou `openai`). |
+| `TRANSCRIPTION_API_KEY` | Chave de API da OpenAI (obrigatória quando `TRANSCRIPTION_PROVIDER=openai`). |
+| `TRANSCRIPTION_MODEL` | Modelo de transcrição (ex.: `small` para local ou `gpt-4o-transcribe-diarize` para OpenAI). |
+| `TRANSCRIPTION_LANGUAGE` | Código de duas letras do idioma de transcrição (padrão: `pt`). |
+| `TRANSCRIPTION_LOCAL_URL` | URL HTTP do serviço local de transcrição (padrão: `http://127.0.0.1:8090/v1/transcriptions`). |
+| `TRANSCRIPTION_REQUEST_TIMEOUT_MS` | Timeout em milissegundos para a chamada de transcrição (padrão: `900000`). |
+| `TRANSCRIPTION_BACKLOG_INTERVAL_MS` | Intervalo em milissegundos para reprocessamento de transcrições pendentes ou com falha (padrão: `60000`). |
+| `WHISPER_PORT` | Porta exposta do contêiner faster-whisper no host (padrão: `8090`). |
+| `WHISPER_MODEL` | Modelo faster-whisper carregado no contêiner (padrão: `small`). |
+| `WHISPER_DEVICE` | Dispositivo de computação do faster-whisper (`cpu` ou `cuda`). |
+| `WHISPER_COMPUTE_TYPE` | Tipo de quantização/precisão do modelo (padrão: `int8`). |
+| `WHISPER_CPU_THREADS` | Número de threads de CPU alocadas ao Whisper (padrão: `8`). |
+| `WHISPER_BEAM_SIZE` | Tamanho do beam search para decodificação (padrão: `5`). |
+| `WHISPER_MAX_UPLOAD_MB` | Tamanho máximo em MB para envio de arquivos de áudio (padrão: `250`). |
+| `OBJECT_STORAGE_PROVIDER` | Identificador do provedor de armazenamento em objeto. |
+| `DEPLOYMENT_PROVIDER` | Identificador do provedor de implantação. |
+| `DEFAULT_DATA_RETENTION_DAYS` | Prazo padrão em dias para retenção e política de descarte de dados. |
 
 ### 6.3 Subir a infraestrutura
 
@@ -508,6 +625,8 @@ O áudio não é armazenado dentro do PostgreSQL.
 
 ## 14. Comandos de desenvolvimento
 
+### 14.1 Scripts do monorepo
+
 ```powershell
 pnpm dev
 pnpm build
@@ -516,7 +635,50 @@ pnpm typecheck
 pnpm test
 ```
 
-Comandos úteis da infraestrutura:
+### 14.2 Banco de dados e migrações (`@omni/db`)
+
+```powershell
+# Setup completo: migrações, role restrita da aplicação e dados iniciais (seed)
+pnpm --filter @omni/db db:setup
+
+# Executar apenas as migrações SQL pendentes
+pnpm --filter @omni/db db:migrate
+
+# Criar a role restrita omni_app sujeita a RLS no PostgreSQL
+pnpm --filter @omni/db db:bootstrap-role
+
+# Sincronizar perfis (roles) e permissões no banco
+pnpm --filter @omni/db db:seed
+
+# Criar uma nova organização e seu primeiro usuário administrador
+pnpm --filter @omni/db db:create-org "Minha Empresa" minha-empresa "Administrador" admin@empresa.com "senha-temporaria"
+
+# Gerar arquivos de migração Drizzle a partir das alterações em packages/db/src/schema
+pnpm --filter @omni/db db:generate
+```
+
+### 14.3 Validação local automatizada
+
+O script PowerShell abaixo sobe um contêiner isolado do PostgreSQL (`infra/docker-compose.postgres.yml`), aplica as migrações e executa os testes de integração do banco sem necessitar de PABX Asterisk ou conexões com provedores SIP:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\validate-dialer-local.ps1
+```
+
+Para desligar o contêiner do PostgreSQL automaticamente após o término dos testes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\infra\scripts\validate-dialer-local.ps1 -StopPostgresAfter
+```
+
+### 14.4 Testes
+
+A suíte de testes utiliza o Vitest gerenciado via Turborepo:
+
+- **Testes unitários**: não possuem dependência de rede ou serviços externos (ex.: em `apps/api`, `apps/telephony-worker`, `packages/queue-kit`, `packages/testing`).
+- **Testes de integração com banco**: em `packages/db`, exigem o PostgreSQL local ativo e as variáveis de ambiente `DATABASE_URL` e `DATABASE_ADMIN_URL` disponíveis na sessão. Podem ser executados com `pnpm --filter @omni/db test` ou via script automatizado `validate-dialer-local.ps1`.
+
+### 14.5 Comandos úteis da infraestrutura
 
 ```powershell
 docker compose --env-file .env -f infra/docker-compose.yml ps
